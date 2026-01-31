@@ -1,1 +1,24 @@
 .venv
+.env
+.env.*
+
+# Python cache/bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+coverage.xml
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Task data file
+tasks.json
