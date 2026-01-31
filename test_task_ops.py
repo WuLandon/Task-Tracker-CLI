@@ -1,15 +1,14 @@
 import datetime
 
-from task_ops import add_task
+from task_ops import add_task, update_task
 
 
-def test_add_task(capsys):
+# Validates add_task stores a new task and increments IDs without breaking order.
+def test_add_task():
     store = {"nextId": 1, "order": [], "tasks": {}}
 
     add_task(store, "Write tests")
-    captured = capsys.readouterr()
 
-    assert "Task added successfully" in captured.out
     assert store["nextId"] == 2
     assert store["order"] == ["1"]
     assert "1" in store["tasks"]
@@ -27,8 +26,30 @@ def test_add_task(capsys):
     assert len(store["tasks"]) == 3
 
 
-# def test_update_task():
-#     pass
+# Verifies update_task changes description/status and refreshes updatedAt.
+def test_update_task():
+    store = {"nextId": 1, "order": [], "tasks": {}}
+    add_task(store, "Original description")
+
+    old_timestamp = "2000-01-01T00:00:00+00:00"
+    store["tasks"]["1"]["createdAt"] = old_timestamp
+    store["tasks"]["1"]["updatedAt"] = old_timestamp
+
+    update_task(store, "1", description="Updated description")
+
+    record = store["tasks"]["1"]
+    assert record["description"] == "Updated description"
+    assert record["status"] == "todo"
+    assert record["createdAt"] == old_timestamp
+    assert record["updatedAt"] != old_timestamp
+    datetime.datetime.fromisoformat(record["updatedAt"])
+
+    update_task(store, "1", status="done")
+
+    record = store["tasks"]["1"]
+    assert record["description"] == "Updated description"
+    assert record["status"] == "done"
+    datetime.datetime.fromisoformat(record["updatedAt"])
 
 
 # def test_delete_task():

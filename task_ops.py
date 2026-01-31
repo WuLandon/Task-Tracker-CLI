@@ -1,16 +1,27 @@
 from __future__ import annotations
 
-from typing import Optional, Callable, Annotated, Literal
 from datetime import datetime, timezone
-
 from task_store import Store, TaskRecord
 from models import TASK_STATUS, TASK_ID
+from typing import (
+    Annotated,
+    Callable,
+    Literal,
+    Optional,
+    TypedDict,
+    Union,
+    get_args,
+    get_origin,
+)
 
+VALID_STATUSES = get_args(TASK_STATUS)
 queries: dict[str, dict] = {}
 
 def add_query(func: Callable) -> Callable:
     pass
 
+def _get_date_time() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 # @add_query
 def add_task(
@@ -19,7 +30,7 @@ def add_task(
 ) -> None:
     """Add a new task and return its integer ID."""
     id: TASK_ID = str(store["nextId"])
-    now: str = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    now: str = _get_date_time()
     status: TASK_STATUS = "todo"
     record: TaskRecord = {
         "description": description,
@@ -34,10 +45,10 @@ def add_task(
     # today = datetime.now(timezone.utc).date().isoformat()
     # list_tasks(store, date=today)
 
-    print("Task added successfully ({description})")
+    print("Task added successfully")
 
 
-@add_query
+# @add_query
 def update_task(
     store: Store, 
     task_id: Annotated[str, "ID of the task to update"],
@@ -46,17 +57,30 @@ def update_task(
                            "--description", 
                            "-d"
                            ] = None,
-    status: Annotated[Optional[str], 
+    status: Annotated[Optional[TASK_STATUS], 
                       "Updated task status", 
                       "--status", 
                       "-s"
                       ] = None,
 ) -> None:
     """Update a task's description and/or status."""
-    raise NotImplementedError
+    if task_id not in store["tasks"]:
+        raise KeyError(f"Task with ID {task_id} does not exist.")
+    record = store["tasks"][task_id]
+    if description is not None:
+        record["description"] = description
+    if status is not None:
+        if status not in VALID_STATUSES:
+            raise ValueError(
+                f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}"
+            )
+        record["status"] = status
+
+    record["updatedAt"] = _get_date_time()
+    print("Task updated successfully")
 
 
-@add_query
+# @add_query
 def delete_task(
     store: Store, 
     task_id: Annotated[str, "ID of the task to delete"],
@@ -65,7 +89,7 @@ def delete_task(
     raise NotImplementedError
 
 
-@add_query
+# @add_query
 def mark_in_progress(
     store: Store, 
     task_id: Annotated[str, "ID of the task to mark 'in-progress'"],
@@ -74,7 +98,7 @@ def mark_in_progress(
     raise NotImplementedError
 
 
-@add_query
+# @add_query
 def mark_done(
     store: Store,
     task_id: Annotated[str, "ID of the task to mark 'done'"],
@@ -83,7 +107,7 @@ def mark_done(
     raise NotImplementedError
 
 
-@add_query
+# @add_query
 def list_tasks(
     store: Store,
     status: Annotated[Literal[TASK_STATUS, "all"], 
