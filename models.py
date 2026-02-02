@@ -1,16 +1,17 @@
 from typing import Literal, TypedDict
 
-TaskStatus = Literal["done", "in-progress", "todo"]
-TaskId = str
+TASK_STATUS_TYPES = Literal["done", "in-progress", "todo"]
+TASK_ID = str
+
 
 class TaskRecord(TypedDict):
     description: str
-    status: TaskStatus
+    status: TASK_STATUS_TYPES
     createdAt: str
     updatedAt: str
 
 
 class Store(TypedDict):
     nextId: int
-    order: list[TaskId]
-    tasks: dict[TaskId, TaskRecord]
+    order: list[TASK_ID]
+    tasks: dict[TASK_ID, TaskRecord]

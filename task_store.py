@@ -6,7 +6,44 @@ from typing import Any
 from models import Store, TaskRecord
 
 DEFAULT_PATH = Path("tasks.json")
-TASK_STATUSES = ("todo", "in-progress", "done")
+VALID_STATUSES = ("done", "in-progress", "todo")
+
+
+def load_tasks(path: Path = DEFAULT_PATH) -> Store:
+    if not path.exists():
+        store: Store = {"nextId": 1, "order": [], "tasks": {}}
+        save_tasks(store, path)
+        return store
+
+    try:
+        with path.open("r", encoding="utf-8") as file:
+            data: Any = json.load(file)
+    except json.JSONDecodeError:
+        _invalid_json_error(path)
+    except OSError:
+        print(f"Error: unable to read tasks file at {path}.", file=sys.stderr)
+        sys.exit(2)
+
+    if not isinstance(data, dict):
+        _invalid_json_error(path)
+
+    store: Store = _parse_store(data, path=path)
+    return store
+
+
+def save_tasks(store: Store, path: Path = DEFAULT_PATH) -> None:
+    directory = path.parent
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", delete=False, dir=str(directory)
+        ) as tmp_file:
+            json.dump(store, tmp_file, indent=2, ensure_ascii=False)
+            tmp_file.write("\n")
+            temp_name = tmp_file.name
+        Path(temp_name).replace(path)
+    except OSError:
+        print(f"Error: unable to write tasks file at {path}.", file=sys.stderr)
+        sys.exit(2)
 
 
 def _invalid_json_error(path: Path) -> None:
@@ -27,10 +64,10 @@ def _parse_task_record(value: Any, *, path: Path) -> TaskRecord:
     updatedAt = value.get("updatedAt")
 
     if not (
-        isinstance(description, str) and
-        status in TASK_STATUSES and
-        isinstance(createdAt, str) and
-        isinstance(updatedAt, str)
+        isinstance(description, str)
+        and status in VALID_STATUSES
+        and isinstance(createdAt, str)
+        and isinstance(updatedAt, str)
     ):
         _invalid_json_error(path)
 
@@ -53,10 +90,11 @@ def _parse_store(data: Any, *, path: Path) -> Store:
 
     # Validate fields
     if not (
-        isinstance(next_id, int) and next_id >= 1 and
-        isinstance(order, list) and
-        all(isinstance(x, str) for x in order) and
-        isinstance(tasks, dict)
+        isinstance(next_id, int)
+        and next_id >= 1
+        and isinstance(order, list)
+        and all(isinstance(x, str) for x in order)
+        and isinstance(tasks, dict)
     ):
         _invalid_json_error(path)
 
@@ -74,46 +112,5 @@ def _parse_store(data: Any, *, path: Path) -> Store:
         _invalid_json_error(path)
 
     # Create Store
-    store: Store = {
-        "nextId": next_id,
-        "order": order,
-        "tasks": parsed_tasks
-    }
+    store: Store = {"nextId": next_id, "order": order, "tasks": parsed_tasks}
     return store
-
-
-def load_tasks(path: Path = DEFAULT_PATH) -> Store:
-    if not path.exists():
-        store: Store = {"nextId": 1, "order": [], "tasks": {}}
-        save_tasks(store, path)
-        return store
-    
-    try:
-        with path.open("r", encoding="utf-8") as file:
-            data: Any = json.load(file)
-    except json.JSONDecodeError:
-        _invalid_json_error(path)
-    except OSError:
-        print(f"Error: unable to read tasks file at {path}.", file=sys.stderr)
-        sys.exit(2)
-    
-    if not isinstance(data, dict):
-        _invalid_json_error(path)
-
-    store: Store = _parse_store(data, path=path)
-    return store
-
-
-def save_tasks(store: Store, path: Path = DEFAULT_PATH) -> None:
-    directory = path.parent
-    try:
-        with tempfile.NamedTemporaryFile(
-            "w", encoding="utf-8", delete=False, dir=str(directory)
-        ) as tmp_file:
-            json.dump(store, tmp_file, indent=2, ensure_ascii=False)
-            tmp_file.write("\n")
-            temp_name = tmp_file.name
-        Path(temp_name).replace(path)
-    except OSError:
-        print(f"Error: unable to write tasks file at {path}.", file=sys.stderr)
-        sys.exit(2)
