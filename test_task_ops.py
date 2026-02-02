@@ -1,12 +1,14 @@
 import datetime
 import pytest
 from task_ops import (
+    add_query,
     add_task,
     delete_task,
     get_date_filter,
     list_tasks,
     mark_done,
     mark_in_progress,
+    queries,
     update_task,
 )
 
@@ -114,15 +116,15 @@ def test_list_tasks(capsys):
     store = {"nextId": 1, "order": [], "tasks": {}}
 
     # Empty store should print fallback message
-    list_tasks(store)
+    list_tasks(store["tasks"])
     output = capsys.readouterr().out
     assert "No Tasks Yet!" in output
 
     # Invalid filters should raise errors
     with pytest.raises(ValueError):
-        list_tasks(store, status="blocked")
+        list_tasks(store["tasks"], status="blocked")
     with pytest.raises(ValueError):
-        list_tasks(store, date="2026-13-01")
+        list_tasks(store["tasks"], date="2026-13-01")
 
     # Add sample tasks
     add_task(store, "Alpha")
@@ -142,32 +144,59 @@ def test_list_tasks(capsys):
     store["tasks"]["3"]["updatedAt"] = "2025-12-31T10:00:00+00:00"
 
     # Listing without filters should include all tasks
-    list_tasks(store)
+    list_tasks(store["tasks"])
     output = capsys.readouterr().out
     assert "Alpha" in output
     assert "Beta" in output
     assert "Gamma" in output
 
     # Status filter should only show matching tasks
-    list_tasks(store, status="done")
+    list_tasks(store["tasks"], status="done")
     output = capsys.readouterr().out
     assert "Gamma" in output
     assert "Alpha" not in output
     assert "Beta" not in output
 
     # Date filter should include tasks created on or after cutoff
-    list_tasks(store, date=">=2026-02-01")
+    list_tasks(store["tasks"], date=">=2026-02-01")
     output = capsys.readouterr().out
     assert "Alpha" in output
     assert "Beta" not in output
     assert "Gamma" not in output
 
     # Combined status + date filter
-    list_tasks(store, status="in-progress", date="<=2026-01")
+    list_tasks(store["tasks"], status="in-progress", date="<=2026-01")
     output = capsys.readouterr().out
     assert "Beta" in output
     assert "Alpha" not in output
     assert "Gamma" not in output
+
+
+# add_query registers decorated functions with parsed metadata.
+def test_add_query():
+    assert "update" in queries
+    update_entry = queries["update"]
+    assert update_entry["command"] is update_task
+    assert update_entry["help"] == update_task.__doc__
+    assert len(update_entry["args"]) == 3
+
+    update_id = update_entry["args"][0]
+    assert update_id["name"] == ["task_id"]
+    assert update_id["help"] == "ID of the task to update"
+    assert update_id["choices"] is None
+    assert update_id["default"] is None
+
+    update_description = update_entry["args"][1]
+    assert update_description["name"] == ["--description", "-d"]
+    assert update_description["help"] == "Updated task description"
+    assert update_description["choices"] is None
+    assert update_description["default"] is None
+
+    update_status = update_entry["args"][2]
+    assert update_status["name"] == ["--status", "-s"]
+    assert update_status["help"] == "Updated task status"
+    assert set(update_status["choices"]) == {"todo", "in-progress", "done"}
+    assert update_status["default"] is None
 
 
 # get_date_filter applies operators across YYYY, YYYY-MM, YYYY-MM-DD formats.

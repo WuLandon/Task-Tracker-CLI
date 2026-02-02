@@ -1,10 +1,9 @@
-from __future__ import annotations
-
 import operator
 from datetime import datetime, timezone, date as date_type
 from tabulate import tabulate
-from task_store import Store, TaskRecord
-from models import TASK_STATUS, TASK_ID
+from inspect import signature
+from task_store import Store, TaskRecord, VALID_STATUSES
+from models import TASK_STATUS_TYPES, TASK_ID
 from typing import (
     Annotated,
     Callable,
@@ -16,22 +15,41 @@ from typing import (
     get_origin,
 )
 
-VALID_STATUSES = get_args(TASK_STATUS)
+# Used in list_tasks()
+TASK_STATUS_FILTER = Literal["done", "in-progress", "todo", "all"]
+
 queries: dict[str, dict] = {}
 
 
 def add_query(func: Callable) -> Callable:
-    pass
+    """Decorator to add valid queries to the queries dictionary."""
+    name = func.__name__.removesuffix("_task").replace("_", "-")
+    queries[name] = {"command": func, "help": func.__doc__, "args": []}
+    for p in signature(func).parameters.values():
+        if p.name in ("store", "store_tasks"):
+            continue
+        t, *metadata = get_args(p.annotation)
+        if get_origin(t) is Union:
+            t = get_args(t)[0]
+        queries[name]["args"].append(
+            {
+                "name": metadata[1:] if len(metadata) > 1 else [p.name],
+                "help": metadata[0],
+                "choices": get_args(t) if get_origin(t) is Literal else None,
+                "default": p.default if p.default is not p.empty else None,
+            }
+        )
+    return func
 
 
-# @add_query
+@add_query
 def add_task(
     store: Store, description: Annotated[str, "Description of the task"]
 ) -> None:
     """Add a new task."""
     id: TASK_ID = str(store["nextId"])
     now: str = _get_date_time()
-    status: TASK_STATUS = "todo"
+    status: TASK_STATUS_TYPES = "todo"
     record: TaskRecord = {
         "description": description,
         "status": status,
@@ -42,13 +60,10 @@ def add_task(
     store["order"].append(id)
     store["nextId"] += 1
 
-    # today = datetime.now(timezone.utc).date().isoformat()
-    # list_tasks(store, date=today)
-
-    print("Task added successfully")
+    list_tasks({id: store["tasks"][id]})
 
 
-# @add_query
+@add_query
 def update_task(
     store: Store,
     task_id: Annotated[str, "ID of the task to update"],
@@ -56,12 +71,13 @@ def update_task(
         Optional[str], "Updated task description", "--description", "-d"
     ] = None,
     status: Annotated[
-        Optional[TASK_STATUS], "Updated task status", "--status", "-s"
+        Optional[TASK_STATUS_TYPES], "Updated task status", "--status", "-s"
     ] = None,
 ) -> None:
     """Update a task's description and/or status."""
     if task_id not in store["tasks"]:
         raise KeyError(f"Task with ID {task_id} does not exist.")
+
     record = store["tasks"][task_id]
     if description is not None:
         record["description"] = description
@@ -71,9 +87,9 @@ def update_task(
                 f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}"
             )
         record["status"] = status
-
     record["updatedAt"] = _get_date_time()
-    print("Task updated successfully")
+
+    list_tasks({task_id: store["tasks"][task_id]})
 
 
 # @add_query
@@ -111,9 +127,9 @@ def mark_done(
 
 # @add_query
 def list_tasks(
-    store: Store,
+    store_tasks: dict[TASK_ID, TaskRecord],
     status: Annotated[
-        TASK_STATUS | Literal["all"],
+        TASK_STATUS_FILTER,
         "List all the tasks or filter by status ('todo', 'in-progress', 'done').",
         "--status",
         "-s",
@@ -143,7 +159,7 @@ def list_tasks(
                 "%Y-%m-%d %H:%M:%S"
             ),
         }
-        for id, task in store["tasks"].items()
+        for id, task in store_tasks.items()
         if (status == "all" or task["status"] == status)
         and filter_date(task["createdAt"])
     )
@@ -153,8 +169,8 @@ def list_tasks(
     )
 
 
-# Get the current date and time in ISO 8601 format (e.g. "2026-01-31T14:30:45+00:00")
 def _get_date_time() -> str:
+    # (e.g. "2026-01-31T14:30:45+00:00")
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
