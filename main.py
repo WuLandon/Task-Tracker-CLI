@@ -1,137 +1,55 @@
-from __future__ import annotations
-
 import sys
-from datetime import datetime, timezone
+from pathlib import Path
+from typing import Callable
+from argparse import ArgumentParser
+from commands import queries
+from store import load_tasks, save_tasks
+from models import Store
 
-import task_ops
-from task_store import TASK_STATUSES, load_tasks, save_tasks
 
+def parse_cli() -> tuple[Callable, dict, Path]:
+    """
+    Parse CLI arguments into the query function, its kwargs, and the store path.
 
-def now_iso_utc() -> str:
-    return (
-        datetime.now(timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z")
+    Builds subcommands from task_ops.queries, parses args with argparse, and
+    returns (query, args, store_path) where:
+      - query is the callable for the chosen command
+      - args is a dict of parsed arguments (excluding command and store)
+      - store_path is an absolute Path to the JSON store (must not be a directory)
+    """
+    parser: ArgumentParser = ArgumentParser(
+        description="This is a CLI task manager made so you can track your everyday tasks."
     )
+    parser.add_argument(
+        "--store",
+        help="Path to your task store (default: '~/tasker.json')",
+        default="~/tasker.json",
+    )
+    subparsers = parser.add_subparsers(title="commands", dest="command", required=True)
+    for name, props in queries.items():
+        p = subparsers.add_parser(name, help=props["help"])
+        for arg in props["args"]:
+            name = arg.pop("name")
+            p.add_argument(*name, **arg)
+            arg["name"] = name
 
+    args: dict = vars(parser.parse_args())
+    query: Callable = queries[args.pop("command")]["command"]
+    store_path: Path = Path(args.pop("store")).expanduser().resolve()
+    if store_path.is_dir():
+        parser.error(f"Task Store path '{store_path}' is a directory")
 
-def print_usage() -> None:
-    print("Usage:")
-    print('tasker add "description"')
-    print('tasker update ID "new description"')
-    print("tasker delete ID")
-    print("tasker mark-in-progress ID")
-    print("tasker mark-done ID")
-    print(f"tasker list [{'|'.join(TASK_STATUSES)}]")
-
-
-def parse_task_id(value: str) -> int:
-    try:
-        task_id = int(value)
-    except ValueError:
-        raise ValueError("Task ID must be an integer.") from None
-    if task_id < 1:
-        raise ValueError("Task ID must be a positive integer.")
-    return task_id
+    return query, args, store_path
 
 
 def main() -> None:
-    args = sys.argv[1:]
-
-    if not args:
-        print("Error: missing command.", file=sys.stderr)
-        print_usage()
-        sys.exit(1)
-
-    cmd = args[0]
-    known_commands = {
-        "add",
-        "update",
-        "delete",
-        "mark-in-progress",
-        "mark-done",
-        "list",
-    }
-
-    if cmd not in known_commands:
-        print(f"Error: unknown command '{cmd}'.", file=sys.stderr)
-        print_usage()
-        sys.exit(1)
-
+    query, args, store_path = parse_cli()
+    store: Store = load_tasks(store_path)
     try:
-        store = load_tasks()
-
-        if cmd == "add":
-            if len(args) != 2:
-                raise ValueError("add requires exactly 1 argument (description).")
-            task_id = task_ops.add_task(store, args[1], now_iso_utc())
-            save_tasks(store)
-            print(f"Task added successfully (ID: {task_id})")
-            return
-
-        if cmd == "update":
-            if len(args) != 3:
-                raise ValueError("update requires exactly 2 arguments (ID and description).")
-            task_id = parse_task_id(args[1])
-            task_ops.update_task(store, task_id, args[2], now_iso_utc())
-            save_tasks(store)
-            return
-
-        if cmd == "delete":
-            if len(args) != 2:
-                raise ValueError("delete requires exactly 1 argument (ID).")
-            task_id = parse_task_id(args[1])
-            task_ops.delete_task(store, task_id)
-            save_tasks(store)
-            return
-
-        if cmd == "mark-in-progress":
-            if len(args) != 2:
-                raise ValueError("mark-in-progress requires exactly 1 argument (ID).")
-            task_id = parse_task_id(args[1])
-            task_ops.mark_in_progress(store, task_id, now_iso_utc())
-            save_tasks(store)
-            return
-
-        if cmd == "mark-done":
-            if len(args) != 2:
-                raise ValueError("mark-done requires exactly 1 argument (ID).")
-            task_id = parse_task_id(args[1])
-            task_ops.mark_done(store, task_id, now_iso_utc())
-            save_tasks(store)
-            return
-
-        if cmd == "list":
-            if len(args) > 2:
-                raise ValueError("list takes at most 1 argument (status).")
-
-            status_filter = None
-            if len(args) == 2:
-                status_filter = args[1]
-                if status_filter not in TASK_STATUSES:
-                    raise ValueError(f"invalid status '{status_filter}'.")
-
-            tasks = task_ops.list_tasks(store, status_filter)  # type: ignore[arg-type]
-            for task_id, record in tasks:
-                print(f"[{task_id}] {record['description']} ({record['status']})")
-            return
-
-        print("Error: command not implemented yet.", file=sys.stderr)
-        print_usage()
-        sys.exit(2)
-    except ValueError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        print_usage()
-        sys.exit(1)
-    except NotImplementedError:
-        print("Error: not implemented yet.", file=sys.stderr)
-        sys.exit(2)
-    except SystemExit:
-        raise
-    except Exception:
-        print("Error: unexpected internal error.", file=sys.stderr)
-        sys.exit(2)
+        query(store, **args)
+    except Exception as e:
+        sys.exit(str(e))
+    save_tasks(store, store_path)
 
 
 if __name__ == "__main__":

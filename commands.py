@@ -2,14 +2,13 @@ import operator
 from datetime import datetime, timezone, date as date_type
 from tabulate import tabulate
 from inspect import signature
-from task_store import Store, TaskRecord, VALID_STATUSES
+from store import Store, TaskRecord, VALID_STATUSES
 from models import TASK_STATUS_TYPES, TASK_ID
 from typing import (
     Annotated,
     Callable,
     Literal,
     Optional,
-    TypedDict,
     Union,
     get_args,
     get_origin,
@@ -19,6 +18,23 @@ from typing import (
 TASK_STATUS_FILTER = Literal["done", "in-progress", "todo", "all"]
 
 queries: dict[str, dict] = {}
+"""
+Registry of CLI queries built by @add_query.
+
+Shape:
+  queries: dict[str, QuerySpec]
+  QuerySpec: {
+    "command": Callable[..., Any],   # function to execute (e.g. add_task)
+    "help": str | None,              # function docstring
+    "args": list[ArgSpec],           # argument definitions (positional or flags)
+  }
+  ArgSpec: {
+    "name": list[str],               # param name or flag names, e.g. ["--status", "-s"]
+    "help": str,                     # parameter help text
+    "choices": tuple | None,         # Literal choices when provided
+    "default": Any | None,           # default value (if any)
+  }
+"""
 
 
 def add_query(func: Callable) -> Callable:
@@ -92,7 +108,7 @@ def update_task(
     list_tasks({task_id: store["tasks"][task_id]})
 
 
-# @add_query
+@add_query
 def delete_task(
     store: Store,
     task_id: Annotated[str, "ID of the task to delete"],
@@ -107,7 +123,7 @@ def delete_task(
     print("Task deleted successfully")
 
 
-# @add_query
+@add_query
 def mark_in_progress(
     store: Store,
     task_id: Annotated[str, "ID of the task to mark 'in-progress'"],
@@ -116,7 +132,7 @@ def mark_in_progress(
     update_task(store, task_id, status="in-progress")
 
 
-# @add_query
+@add_query
 def mark_done(
     store: Store,
     task_id: Annotated[str, "ID of the task to mark 'done'"],
@@ -125,7 +141,7 @@ def mark_done(
     update_task(store, task_id, status="done")
 
 
-# @add_query
+@add_query
 def list_tasks(
     store_tasks: dict[TASK_ID, TaskRecord],
     status: Annotated[
@@ -170,7 +186,6 @@ def list_tasks(
 
 
 def _get_date_time() -> str:
-    # (e.g. "2026-01-31T14:30:45+00:00")
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 

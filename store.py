@@ -10,6 +10,7 @@ VALID_STATUSES = ("done", "in-progress", "todo")
 
 
 def load_tasks(path: Path = DEFAULT_PATH) -> Store:
+    """Load the task store from JSON, creating a new store if missing."""
     if not path.exists():
         store: Store = {"nextId": 1, "order": [], "tasks": {}}
         save_tasks(store, path)
@@ -32,6 +33,7 @@ def load_tasks(path: Path = DEFAULT_PATH) -> Store:
 
 
 def save_tasks(store: Store, path: Path = DEFAULT_PATH) -> None:
+    """Atomically write the im-memory task store to JSON."""
     directory = path.parent
     try:
         with tempfile.NamedTemporaryFile(
@@ -48,13 +50,14 @@ def save_tasks(store: Store, path: Path = DEFAULT_PATH) -> None:
 
 def _invalid_json_error(path: Path) -> None:
     print(
-        f"Error: tasks file is invalid JSON. Fix or delete {path} and try again.",
+        f"Error: Tasks file is invalid JSON. Fix or delete {path} and try again.",
         file=sys.stderr,
     )
     sys.exit(1)
 
 
 def _parse_task_record(value: Any, *, path: Path) -> TaskRecord:
+    """Validate and normalize a single task record from JSON."""
     if not isinstance(value, dict):
         _invalid_json_error(path)
 

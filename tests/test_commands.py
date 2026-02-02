@@ -1,7 +1,6 @@
 import datetime
 import pytest
-from task_ops import (
-    add_query,
+from commands import (
     add_task,
     delete_task,
     get_date_filter,
