@@ -1,9 +1,7 @@
 import operator
-from datetime import datetime, timezone, date as date_type
-from tabulate import tabulate
+from datetime import date as date_type
+from datetime import datetime, timezone
 from inspect import signature
-from store import Store, TaskRecord, VALID_STATUSES
-from models import TASK_STATUS_TYPES, TASK_ID
 from typing import (
     Annotated,
     Callable,
@@ -13,6 +11,11 @@ from typing import (
     get_args,
     get_origin,
 )
+
+from tabulate import tabulate
+
+from models import TASK_ID, TASK_STATUS_TYPES
+from store import VALID_STATUSES, Store, TaskRecord
 
 # Used in list_tasks()
 TASK_STATUS_FILTER = Literal["done", "in-progress", "todo", "all"]
@@ -59,9 +62,7 @@ def add_query(func: Callable) -> Callable:
 
 
 @add_query
-def add_task(
-    store: Store, description: Annotated[str, "Description of the task"]
-) -> None:
+def add_task(store: Store, description: Annotated[str, "Description of the task"]) -> None:
     """Add a new task."""
     id: TASK_ID = str(store["nextId"])
     now: str = _get_date_time()
@@ -76,19 +77,15 @@ def add_task(
     store["order"].append(id)
     store["nextId"] += 1
 
-    list_tasks({id: store["tasks"][id]})
+    list_task({id: store["tasks"][id]})
 
 
 @add_query
 def update_task(
     store: Store,
     task_id: Annotated[str, "ID of the task to update"],
-    description: Annotated[
-        Optional[str], "Updated task description", "--description", "-d"
-    ] = None,
-    status: Annotated[
-        Optional[TASK_STATUS_TYPES], "Updated task status", "--status", "-s"
-    ] = None,
+    description: Annotated[Optional[str], "Updated task description", "--description", "-d"] = None,
+    status: Annotated[Optional[TASK_STATUS_TYPES], "Updated task status", "--status", "-s"] = None,
 ) -> None:
     """Update a task's description and/or status."""
     if task_id not in store["tasks"]:
@@ -99,13 +96,11 @@ def update_task(
         record["description"] = description
     if status is not None:
         if status not in VALID_STATUSES:
-            raise ValueError(
-                f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}"
-            )
+            raise ValueError(f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}")
         record["status"] = status
     record["updatedAt"] = _get_date_time()
 
-    list_tasks({task_id: store["tasks"][task_id]})
+    list_task({task_id: store["tasks"][task_id]})
 
 
 @add_query
@@ -142,7 +137,7 @@ def mark_done(
 
 
 @add_query
-def list_tasks(
+def list_task(
     store_tasks: dict[TASK_ID, TaskRecord],
     status: Annotated[
         TASK_STATUS_FILTER,
@@ -160,29 +155,21 @@ def list_tasks(
 ) -> None:
     """List tasks filtered by status and/or date."""
     if status not in {*VALID_STATUSES, "all"}:
-        raise ValueError(
-            f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}."
-        )
+        raise ValueError(f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}.")
     filter_date = get_date_filter(date)
     data_table = (
         {
             "ID": id,
             "Description": task["description"],
-            "Created At": datetime.fromisoformat(task["createdAt"]).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-            "Updated At": datetime.fromisoformat(task["updatedAt"]).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
+            "Status": task["status"],
+            "Created At": datetime.fromisoformat(task["createdAt"]).strftime("%Y-%m-%d %H:%M:%S"),
+            "Updated At": datetime.fromisoformat(task["updatedAt"]).strftime("%Y-%m-%d %H:%M:%S"),
         }
         for id, task in store_tasks.items()
-        if (status == "all" or task["status"] == status)
-        and filter_date(task["createdAt"])
+        if (status == "all" or task["status"] == status) and filter_date(task["createdAt"])
     )
 
-    print(
-        tabulate(data_table, tablefmt="rounded_grid", headers="keys") or "No Tasks Yet!"
-    )
+    print(tabulate(data_table, tablefmt="rounded_grid", headers="keys") or "No Tasks Yet!")
 
 
 def _get_date_time() -> str:
@@ -229,9 +216,7 @@ def get_date_filter(date_filter: Optional[str] = None) -> Callable[[str], bool]:
         except ValueError:
             continue
     if parsed_date is None or chosen_fmt is None:
-        raise ValueError(
-            f"Invalid date format: {date_part!r}. Expected YYYY-MM-DD, YYYY-MM, or YYYY."
-        )
+        raise ValueError(f"Invalid date format: {date_part!r}. Expected YYYY-MM-DD, YYYY-MM, or YYYY.")
 
     # Predicate: compare stored ISO date against parsed filter date
     comparators = {

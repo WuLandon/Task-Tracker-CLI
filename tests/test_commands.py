@@ -1,10 +1,12 @@
 import datetime
+
 import pytest
+
 from commands import (
     add_task,
     delete_task,
     get_date_filter,
-    list_tasks,
+    list_task,
     mark_done,
     mark_in_progress,
     queries,
@@ -115,15 +117,15 @@ def test_list_tasks(capsys):
     store = {"nextId": 1, "order": [], "tasks": {}}
 
     # Empty store should print fallback message
-    list_tasks(store["tasks"])
+    list_task(store["tasks"])
     output = capsys.readouterr().out
     assert "No Tasks Yet!" in output
 
     # Invalid filters should raise errors
     with pytest.raises(ValueError):
-        list_tasks(store["tasks"], status="blocked")
+        list_task(store["tasks"], status="blocked")
     with pytest.raises(ValueError):
-        list_tasks(store["tasks"], date="2026-13-01")
+        list_task(store["tasks"], date="2026-13-01")
 
     # Add sample tasks
     add_task(store, "Alpha")
@@ -143,28 +145,28 @@ def test_list_tasks(capsys):
     store["tasks"]["3"]["updatedAt"] = "2025-12-31T10:00:00+00:00"
 
     # Listing without filters should include all tasks
-    list_tasks(store["tasks"])
+    list_task(store["tasks"])
     output = capsys.readouterr().out
     assert "Alpha" in output
     assert "Beta" in output
     assert "Gamma" in output
 
     # Status filter should only show matching tasks
-    list_tasks(store["tasks"], status="done")
+    list_task(store["tasks"], status="done")
     output = capsys.readouterr().out
     assert "Gamma" in output
     assert "Alpha" not in output
     assert "Beta" not in output
 
     # Date filter should include tasks created on or after cutoff
-    list_tasks(store["tasks"], date=">=2026-02-01")
+    list_task(store["tasks"], date=">=2026-02-01")
     output = capsys.readouterr().out
     assert "Alpha" in output
     assert "Beta" not in output
     assert "Gamma" not in output
 
     # Combined status + date filter
-    list_tasks(store["tasks"], status="in-progress", date="<=2026-01")
+    list_task(store["tasks"], status="in-progress", date="<=2026-01")
     output = capsys.readouterr().out
     assert "Beta" in output
     assert "Alpha" not in output

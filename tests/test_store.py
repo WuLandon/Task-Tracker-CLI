@@ -1,6 +1,8 @@
 import json
-import pytest
 from pathlib import Path
+
+import pytest
+
 from store import load_tasks, save_tasks
 
 

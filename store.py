@@ -3,6 +3,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+
 from models import Store, TaskRecord
 
 DEFAULT_PATH = Path("tasks.json")
@@ -108,7 +109,7 @@ def _parse_store(data: Any, *, path: Path) -> Store:
             _invalid_json_error(path)
         parsed_tasks[task_id] = _parse_task_record(record, path=path)
 
-    # Invariants: order should match tasks exactly (no missing, no extras, no duplicates)
+    # Invariants: order should match tasks exactly
     if len(order) != len(set(order)):
         _invalid_json_error(path)
     if set(order) != set(parsed_tasks.keys()):

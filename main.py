@@ -1,10 +1,11 @@
 import sys
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Callable
-from argparse import ArgumentParser
+
 from commands import queries
-from store import load_tasks, save_tasks
 from models import Store
+from store import load_tasks, save_tasks
 
 
 def parse_cli() -> tuple[Callable, dict, Path]:
@@ -22,8 +23,8 @@ def parse_cli() -> tuple[Callable, dict, Path]:
     )
     parser.add_argument(
         "--store",
-        help="Path to your task store (default: '~/tasker.json')",
-        default="~/tasker.json",
+        help="Path to your task store (default: 'tasker.json')",
+        default="tasks.json",
     )
     subparsers = parser.add_subparsers(title="commands", dest="command", required=True)
     for name, props in queries.items():
