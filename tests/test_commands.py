@@ -117,15 +117,15 @@ def test_list_tasks(capsys):
     store = {"nextId": 1, "order": [], "tasks": {}}
 
     # Empty store should print fallback message
-    list_task(store["tasks"])
+    list_task(store)
     output = capsys.readouterr().out
     assert "No Tasks Yet!" in output
 
     # Invalid filters should raise errors
     with pytest.raises(ValueError):
-        list_task(store["tasks"], status="blocked")
+        list_task(store, status="blocked")
     with pytest.raises(ValueError):
-        list_task(store["tasks"], date="2026-13-01")
+        list_task(store, date="2026-13-01")
 
     # Add sample tasks
     add_task(store, "Alpha")
@@ -145,28 +145,35 @@ def test_list_tasks(capsys):
     store["tasks"]["3"]["updatedAt"] = "2025-12-31T10:00:00+00:00"
 
     # Listing without filters should include all tasks
-    list_task(store["tasks"])
+    list_task(store)
     output = capsys.readouterr().out
     assert "Alpha" in output
     assert "Beta" in output
     assert "Gamma" in output
 
     # Status filter should only show matching tasks
-    list_task(store["tasks"], status="done")
+    list_task(store, status="done")
     output = capsys.readouterr().out
     assert "Gamma" in output
     assert "Alpha" not in output
     assert "Beta" not in output
 
     # Date filter should include tasks created on or after cutoff
-    list_task(store["tasks"], date=">=2026-02-01")
+    list_task(store, date=">=2026-02-01")
     output = capsys.readouterr().out
     assert "Alpha" in output
     assert "Beta" not in output
     assert "Gamma" not in output
 
     # Combined status + date filter
-    list_task(store["tasks"], status="in-progress", date="<=2026-01")
+    list_task(store, status="in-progress", date="<=2026-01")
+    output = capsys.readouterr().out
+    assert "Beta" in output
+    assert "Alpha" not in output
+    assert "Gamma" not in output
+
+    # task_id filter should show only the requested task
+    list_task(store, task_id="2")
     output = capsys.readouterr().out
     assert "Beta" in output
     assert "Alpha" not in output

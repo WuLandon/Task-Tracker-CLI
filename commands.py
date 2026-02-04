@@ -45,7 +45,7 @@ def add_query(func: Callable) -> Callable:
     name = func.__name__.removesuffix("_task").replace("_", "-")
     queries[name] = {"command": func, "help": func.__doc__, "args": []}
     for p in signature(func).parameters.values():
-        if p.name in ("store", "store_tasks"):
+        if p.name in ("store"):
             continue
         t, *metadata = get_args(p.annotation)
         if get_origin(t) is Union:
@@ -77,7 +77,7 @@ def add_task(store: Store, description: Annotated[str, "Description of the task"
     store["order"].append(id)
     store["nextId"] += 1
 
-    list_task({id: store["tasks"][id]})
+    list_task(store, task_id=id)
 
 
 @add_query
@@ -85,7 +85,7 @@ def update_task(
     store: Store,
     task_id: Annotated[str, "ID of the task to update"],
     description: Annotated[Optional[str], "Updated task description", "--description", "-d"] = None,
-    status: Annotated[Optional[TASK_STATUS_TYPES], "Updated task status", "--status", "-s"] = None,
+    status: Annotated[Optional[TASK_STATUS_TYPES], "Update the status of a task", "--status", "-s"] = None,
 ) -> None:
     """Update a task's description and/or status."""
     if task_id not in store["tasks"]:
@@ -100,7 +100,7 @@ def update_task(
         record["status"] = status
     record["updatedAt"] = _get_date_time()
 
-    list_task({task_id: store["tasks"][task_id]})
+    list_task(store, task_id=task_id)
 
 
 @add_query
@@ -138,7 +138,13 @@ def mark_done(
 
 @add_query
 def list_task(
-    store_tasks: dict[TASK_ID, TaskRecord],
+    store: Store,
+    task_id: Annotated[
+        Optional[str],
+        "List a specific task by ID.",
+        "--task-id",
+        "-i",
+    ] = None,
     status: Annotated[
         TASK_STATUS_FILTER,
         "List all the tasks or filter by status ('todo', 'in-progress', 'done').",
@@ -157,19 +163,34 @@ def list_task(
     if status not in {*VALID_STATUSES, "all"}:
         raise ValueError(f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}.")
     filter_date = get_date_filter(date)
-    data_table = (
-        {
-            "ID": id,
-            "Description": task["description"],
-            "Status": task["status"],
-            "Created At": datetime.fromisoformat(task["createdAt"]).strftime("%Y-%m-%d %H:%M:%S"),
-            "Updated At": datetime.fromisoformat(task["updatedAt"]).strftime("%Y-%m-%d %H:%M:%S"),
-        }
-        for id, task in store_tasks.items()
-        if (status == "all" or task["status"] == status) and filter_date(task["createdAt"])
-    )
+    store_tasks = store["tasks"]
+    if task_id is not None:
+        if task_id not in store_tasks:
+            raise KeyError(f"Task with ID {task_id} does not exist.")
+        task_ids = [task_id]
+    else:
+        task_ids = store["order"]
+    rows: list[dict[str, str]] = []
+    for id in task_ids:
+        task = store_tasks[id]
+        if (status == "all" or task["status"] == status) and filter_date(task["createdAt"]):
+            rows.append(_task_to_row(id, task))
 
-    print(tabulate(data_table, tablefmt="rounded_grid", headers="keys") or "No Tasks Yet!")
+    print(tabulate(rows, tablefmt="rounded_grid", headers="keys") or "No Tasks Listed!")
+
+
+def _format_timestamp(iso_timestamp: str) -> str:
+    return datetime.fromisoformat(iso_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _task_to_row(task_id: TASK_ID, task: TaskRecord) -> dict[str, str]:
+    return {
+        "ID": task_id,
+        "Description": task["description"],
+        "Status": task["status"],
+        "Created At": _format_timestamp(task["createdAt"]),
+        "Updated At": _format_timestamp(task["updatedAt"]),
+    }
 
 
 def _get_date_time() -> str:
