@@ -1,10 +1,10 @@
-# Tasker - Lightweight Task Tracking CLI
+# Tasker: Lightweight CLI Task Tracking App
 
-Tasker is a simple, installable command-line application for tracking tasks locally using a JSON file.  
-It supports adding, updating, deleting, and listing tasks with persistent storage and clean CLI semantics.
+![Demo](demo.gif)
 
 ## Table of Contents
 
+- [Overview](#overview)
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
@@ -12,15 +12,18 @@ It supports adding, updating, deleting, and listing tasks with persistent storag
 - [Project Structure](#project-structure)
 - [License](#license)
 
+## Overview
+
+Tasker is a simple, installable CLI application designed for managing your to-do list locally.
+
 ## Features
 
 - Add, update, and delete tasks
-- Mark tasks as todo, in-progress, or done
+- Mark tasks as 'todo', 'in-progress', or 'done'
 - List all tasks or filter by status and date
 - Persistent JSON-based storage
 - Installable CLI (`tasker`)
-- Strong typing and structured data model
-- Graceful error handling for CLI usage
+- Clean CLI semantics
 
 ## Installation
 
@@ -37,7 +40,7 @@ tasker [--store PATH] <command> [options]
 tasker add "Buy groceries"
 
 # Update
-tasker update 1 --status done --description "Buy groceries and cook dinner"
+tasker update 1 --status 'done' --description "Buy groceries and cook dinner"
 
 # Delete
 tasker delete 1
@@ -51,9 +54,9 @@ tasker list
 
 # List filters
 tasker list --task-id 1
-tasker list --status todo
-tasker list --status in-progress
-tasker list --status done
+tasker list --status 'todo'
+tasker list --status 'in-progress'
+tasker list --status 'done'
 tasker list --date "<=2026-02-01"
 ```
 
