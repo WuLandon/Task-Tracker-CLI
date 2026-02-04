@@ -1,4 +1,4 @@
-# Tasker: Lightweight CLI Task Tracking App
+# Tasker: CLI Task Tracking App
 
 ![Demo](demo.gif)
 
