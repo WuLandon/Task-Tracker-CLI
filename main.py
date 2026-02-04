@@ -23,7 +23,7 @@ def parse_cli() -> tuple[Callable, dict, Path]:
     )
     parser.add_argument(
         "--store",
-        help="Path to your task store (default: 'tasker.json')",
+        help="Path to your task store (default: 'tasks.json')",
         default="tasks.json",
     )
     subparsers = parser.add_subparsers(title="commands", dest="command", required=True)
