@@ -62,7 +62,7 @@ def add_query(func: Callable) -> Callable:
 
 
 @add_query
-def add_task(store: Store, description: Annotated[str, "Description of the task"]) -> None:
+def add_task(store: Store, description: Annotated[str, "Description of the task"]) -> bool:
     """Add a new task."""
     id: TASK_ID = str(store["nextId"])
     now: str = _get_date_time()
@@ -78,6 +78,7 @@ def add_task(store: Store, description: Annotated[str, "Description of the task"
     store["nextId"] += 1
 
     list_task(store, task_id=id)
+    return True
 
 
 @add_query
@@ -85,8 +86,8 @@ def update_task(
     store: Store,
     task_id: Annotated[str, "ID of the task to update"],
     description: Annotated[Optional[str], "Updated task description", "--description", "-d"] = None,
-    status: Annotated[Optional[TASK_STATUS_TYPES], "Update the status of a task", "--status", "-s"] = None,
-) -> None:
+    status: Annotated[Optional[TASK_STATUS_TYPES], "Updated task status", "--status", "-s"] = None,
+) -> bool:
     """Update a task's description and/or status."""
     if task_id not in store["tasks"]:
         raise KeyError(f"Task with ID {task_id} does not exist.")
@@ -101,13 +102,14 @@ def update_task(
     record["updatedAt"] = _get_date_time()
 
     list_task(store, task_id=task_id)
+    return True
 
 
 @add_query
 def delete_task(
     store: Store,
     task_id: Annotated[str, "ID of the task to delete"],
-) -> None:
+) -> bool:
     """Delete a task."""
     if task_id not in store["tasks"]:
         raise KeyError(f"Task with ID {task_id} does not exist.")
@@ -116,24 +118,25 @@ def delete_task(
     del store["tasks"][task_id]
 
     print("Task deleted successfully")
+    return True
 
 
 @add_query
 def mark_in_progress(
     store: Store,
     task_id: Annotated[str, "ID of the task to mark 'in-progress'"],
-) -> None:
+) -> bool:
     """Set task status to 'in-progress'."""
-    update_task(store, task_id, status="in-progress")
+    return update_task(store, task_id, status="in-progress")
 
 
 @add_query
 def mark_done(
     store: Store,
     task_id: Annotated[str, "ID of the task to mark 'done'"],
-) -> None:
+) -> bool:
     """Set task status to 'done'."""
-    update_task(store, task_id, status="done")
+    return update_task(store, task_id, status="done")
 
 
 @add_query
@@ -158,7 +161,7 @@ def list_task(
         "--date",
         "-d",
     ] = None,
-) -> None:
+) -> bool:
     """List tasks filtered by status and/or date."""
     if status not in {*VALID_STATUSES, "all"}:
         raise ValueError(f"Invalid status '{status}'. Valid statuses: {', '.join(VALID_STATUSES)}.")
@@ -176,7 +179,8 @@ def list_task(
         if (status == "all" or task["status"] == status) and filter_date(task["createdAt"]):
             rows.append(_task_to_row(id, task))
 
-    print(tabulate(rows, tablefmt="rounded_grid", headers="keys") or "No Tasks Listed!")
+    print(tabulate(rows, tablefmt="rounded_grid", headers="keys") or "No Tasks Yet!")
+    return False
 
 
 def _format_timestamp(iso_timestamp: str) -> str:

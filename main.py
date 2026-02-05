@@ -47,10 +47,11 @@ def main() -> None:
     query, args, store_path = parse_cli()
     store: Store = load_tasks(store_path)
     try:
-        query(store, **args)
+        should_save = query(store, **args) is not False
     except Exception as e:
         sys.exit(str(e))
-    save_tasks(store, store_path)
+    if should_save:
+        save_tasks(store, store_path)  # Save only on mutation
 
 
 if __name__ == "__main__":
