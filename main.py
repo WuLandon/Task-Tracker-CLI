@@ -12,7 +12,7 @@ def parse_cli() -> tuple[Callable, dict, Path]:
     """
     Parse CLI arguments into the query function, its kwargs, and the store path.
 
-    Builds subcommands from task_ops.queries, parses args with argparse, and
+    Builds subcommands from queries, parses args with argparse, and
     returns (query, args, store_path) where:
       - query is the callable for the chosen command
       - args is a dict of parsed arguments (excluding command and store)
