@@ -9,6 +9,7 @@
 - [Installation](#installation)
 - [Usage](#usage)
 - [Data Model](#data-model)
+- [Query Model](#query-model)
 - [Project Structure](#project-structure)
 - [License](#license)
 
@@ -84,6 +85,56 @@ Tasks are stored in a JSON file with the following structure:
 - `nextId` ensures unique task IDs
 - `order` preserves insertion order
 - `tasks` allows O(1) access by ID
+
+## Query Model
+
+Registered CLI queries are stored in the in-memory `queries` dictionary with the following structure:
+
+```json
+{
+  "add": {
+    "command": "add_task",
+    "help": "Add a new task.",
+    "args": [
+      {
+        "name": ["description"],
+        "help": "Description of the task",
+        "choices": null,
+        "default": null
+      }
+    ]
+  },
+  "update": {
+    "command": "update_task",
+    "help": "Update a task's description and/or status.",
+    "args": [
+      {
+        "name": ["task_id"],
+        "help": "ID of the task to update",
+        "choices": null,
+        "default": null
+      },
+      {
+        "name": ["--description", "-d"],
+        "help": "Updated task description",
+        "choices": null,
+        "default": null
+      },
+      {
+        "name": ["--status", "-s"],
+        "help": "Updated task status",
+        "choices": ["todo", "in-progress", "done"],
+        "default": null
+      }
+    ]
+  }
+}
+```
+
+- Query keys (for example `add`, `update`, `list`) map to registered command metadata
+- `command` points to the function executed for that query
+- `help` comes from each command's docstring
+- `args` contains positional and flag metadata used to build the CLI parser
 
 ## Project Structure
 
